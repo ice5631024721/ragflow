@@ -35,8 +35,10 @@ import {
   initialBeginValues,
   initialBingValues,
   initialCategorizeValues,
+  initialDeepLValues,
   initialDuckValues,
   initialGenerateValues,
+  initialGoogleScholarValues,
   initialGoogleValues,
   initialKeywordExtractValues,
   initialMessageValues,
@@ -97,6 +99,8 @@ export const useInitializeOperatorParams = () => {
       [Operator.ArXiv]: initialArXivValues,
       [Operator.Google]: initialGoogleValues,
       [Operator.Bing]: initialBingValues,
+      [Operator.GoogleScholar]: initialGoogleScholarValues,
+      [Operator.DeepL]: initialDeepLValues,
     };
   }, [llmId]);
 
@@ -252,8 +256,22 @@ export const useHandleFormValuesChange = (id?: string) => {
   const updateNodeForm = useGraphStore((state) => state.updateNodeForm);
   const handleValuesChange = useCallback(
     (changedValues: any, values: any) => {
+      let nextValues: any = values;
+      // Fixed the issue that the related form value does not change after selecting the freedom field of the model
+      if (
+        Object.keys(changedValues).length === 1 &&
+        'parameter' in changedValues &&
+        changedValues['parameter'] in settledModelVariableMap
+      ) {
+        nextValues = {
+          ...values,
+          ...settledModelVariableMap[
+            changedValues['parameter'] as keyof typeof settledModelVariableMap
+          ],
+        };
+      }
       if (id) {
-        updateNodeForm(id, values);
+        updateNodeForm(id, nextValues);
       }
     },
     [updateNodeForm, id],
