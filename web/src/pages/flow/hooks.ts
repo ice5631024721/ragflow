@@ -31,6 +31,7 @@ import {
   Operator,
   RestrictedUpstreamMap,
   initialArXivValues,
+  initialBaiduFanyiValues,
   initialBaiduValues,
   initialBeginValues,
   initialBingValues,
@@ -38,11 +39,13 @@ import {
   initialDeepLValues,
   initialDuckValues,
   initialGenerateValues,
+  initialGithubValues,
   initialGoogleScholarValues,
   initialGoogleValues,
   initialKeywordExtractValues,
   initialMessageValues,
   initialPubMedValues,
+  initialQWeatherValues,
   initialRelevantValues,
   initialRetrievalValues,
   initialRewriteQuestionValues,
@@ -101,6 +104,9 @@ export const useInitializeOperatorParams = () => {
       [Operator.Bing]: initialBingValues,
       [Operator.GoogleScholar]: initialGoogleScholarValues,
       [Operator.DeepL]: initialDeepLValues,
+      [Operator.GitHub]: initialGithubValues,
+      [Operator.BaiduFanyi]: initialBaiduFanyiValues,
+      [Operator.QWeather]: initialQWeatherValues,
     };
   }, [llmId]);
 
