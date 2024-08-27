@@ -1,20 +1,21 @@
 import MessageItem from '@/components/message-item';
 import DocumentPreviewer from '@/components/pdf-previewer';
 import { MessageType } from '@/constants/chat';
-import { useTranslate } from '@/hooks/common-hooks';
-import { Button, Drawer, Flex, Input, Spin } from 'antd';
+import { Drawer, Flex, Spin } from 'antd';
 import {
   useClickDrawer,
+  useCreateConversationBeforeUploadDocument,
   useFetchConversationOnMount,
   useGetFileIcon,
   useGetSendButtonDisabled,
-  useSelectConversationLoading,
   useSendButtonDisabled,
   useSendMessage,
 } from '../hooks';
 import { buildMessageItemReference } from '../utils';
 
+import MessageInput from '@/components/message-input';
 import { useFetchUserInfo } from '@/hooks/user-setting-hooks';
+import { memo } from 'react';
 import styles from './index.less';
 
 const ChatContainer = () => {
@@ -24,6 +25,8 @@ const ChatContainer = () => {
     addNewestConversation,
     removeLatestMessage,
     addNewestAnswer,
+    conversationId,
+    loading,
   } = useFetchConversationOnMount();
   const {
     handleInputChange,
@@ -41,9 +44,9 @@ const ChatContainer = () => {
   const disabled = useGetSendButtonDisabled();
   const sendDisabled = useSendButtonDisabled(value);
   useGetFileIcon();
-  const loading = useSelectConversationLoading();
-  const { t } = useTranslate('chat');
   const { data: userInfo } = useFetchUserInfo();
+  const { createConversationBeforeUploadDocument } =
+    useCreateConversationBeforeUploadDocument();
 
   return (
     <>
@@ -72,24 +75,18 @@ const ChatContainer = () => {
           </div>
           <div ref={ref} />
         </Flex>
-        <Input
-          size="large"
-          placeholder={t('sendPlaceholder')}
-          value={value}
+        <MessageInput
           disabled={disabled}
-          suffix={
-            <Button
-              type="primary"
-              onClick={handlePressEnter}
-              loading={sendLoading}
-              disabled={sendDisabled}
-            >
-              {t('send')}
-            </Button>
-          }
+          sendDisabled={sendDisabled}
+          sendLoading={sendLoading}
+          value={value}
+          onInputChange={handleInputChange}
           onPressEnter={handlePressEnter}
-          onChange={handleInputChange}
-        />
+          conversationId={conversationId}
+          createConversationBeforeUploadDocument={
+            createConversationBeforeUploadDocument
+          }
+        ></MessageInput>
       </Flex>
       <Drawer
         title="Document Previewer"
@@ -107,4 +104,4 @@ const ChatContainer = () => {
   );
 };
 
-export default ChatContainer;
+export default memo(ChatContainer);

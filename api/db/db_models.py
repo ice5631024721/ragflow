@@ -449,6 +449,11 @@ class Tenant(DataBaseModel):
         null=False,
         help_text="default rerank model ID",
         index=True)
+    tts_id = CharField(
+        max_length=256,
+        null=True,
+        help_text="default tts model ID",
+        index=True)
     parser_ids = CharField(
         max_length=256,
         null=False,
@@ -532,8 +537,7 @@ class LLM(DataBaseModel):
         max_length=128,
         null=False,
         help_text="LLM name",
-        index=True,
-        primary_key=True)
+        index=True)
     model_type = CharField(
         max_length=128,
         null=False,
@@ -558,6 +562,7 @@ class LLM(DataBaseModel):
         return self.llm_name
 
     class Meta:
+        primary_key = CompositeKey('fid', 'llm_name')
         db_table = "llm"
 
 
@@ -960,8 +965,20 @@ def migrate_db():
             pass
         try:
             migrate(
+                migrator.add_column("tenant","tts_id",
+                    CharField(max_length=256,null=True,help_text="default tts model ID",index=True))
+            )
+        except Exception as e:
+            pass
+        try:
+            migrate(
                 migrator.add_column('api_4_conversation', 'source',
                                     CharField(max_length=16, null=True, help_text="none|agent|dialog", index=True))
             )
+        except Exception as e:
+            pass
+        try:
+            DB.execute_sql('ALTER TABLE llm DROP PRIMARY KEY;')
+            DB.execute_sql('ALTER TABLE llm ADD PRIMARY KEY (llm_name,fid);')
         except Exception as e:
             pass

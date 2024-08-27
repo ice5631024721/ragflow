@@ -13,6 +13,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
+
 import collections
 import logging
 import re
@@ -105,6 +106,9 @@ class MindMapExtractor:
             for i, _ in enumerate(threads):
                 res.append(_.result())
 
+            if not res:
+                return MindMapResult(output={"root":{}})
+
             merge_json = reduce(self._merge, res)
             if len(merge_json.keys()) > 1:
                 keyset = set(
@@ -113,7 +117,7 @@ class MindMapExtractor:
                           "children": [{"id": self._key(k), "children": self._be_children(v, keyset)} for k, v in
                                        merge_json.items() if isinstance(v, dict) and self._key(k)]}
             else:
-                k = self._key(list(self._be_children.keys())[0])
+                k = self._key(list(merge_json.keys())[0])
                 merge_json = {"id": k, "children": self._be_children(list(merge_json.items())[0][1], set([k]))}
 
         except Exception as e:

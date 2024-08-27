@@ -24,6 +24,7 @@ from abc import ABC
 import numpy as np
 from api.utils.file_utils import get_home_cache_dir
 from rag.utils import num_tokens_from_string, truncate
+import json
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -245,3 +246,68 @@ class CoHereRerank(Base):
         rank = np.array([d.relevance_score for d in res.results])
         indexs = [d.index for d in res.results]
         return rank[indexs], token_count
+
+
+class TogetherAIRerank(Base):
+    def __init__(self, key, model_name, base_url):
+        pass
+
+    def similarity(self, query: str, texts: list):
+        raise NotImplementedError("The api has not been implement")
+
+
+class SILICONFLOWRerank(Base):
+    def __init__(
+        self, key, model_name, base_url="https://api.siliconflow.cn/v1/rerank"
+    ):
+        if not base_url:
+            base_url = "https://api.siliconflow.cn/v1/rerank"
+        self.model_name = model_name
+        self.base_url = base_url
+        self.headers = {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "authorization": f"Bearer {key}",
+        }
+
+    def similarity(self, query: str, texts: list):
+        payload = {
+            "model": self.model_name,
+            "query": query,
+            "documents": texts,
+            "top_n": len(texts),
+            "return_documents": False,
+            "max_chunks_per_doc": 1024,
+            "overlap_tokens": 80,
+        }
+        response = requests.post(
+            self.base_url, json=payload, headers=self.headers
+        ).json()
+        rank = np.array([d["relevance_score"] for d in response["results"]])
+        indexs = [d["index"] for d in response["results"]]
+        return (
+            rank[indexs],
+            response["meta"]["tokens"]["input_tokens"] + response["meta"]["tokens"]["output_tokens"],
+        )
+
+
+class BaiduYiyanRerank(Base):
+    def __init__(self, key, model_name, base_url=None):
+        from qianfan.resources import Reranker
+
+        key = json.loads(key)
+        ak = key.get("yiyan_ak", "")
+        sk = key.get("yiyan_sk", "")
+        self.client = Reranker(ak=ak, sk=sk)
+        self.model_name = model_name
+
+    def similarity(self, query: str, texts: list):
+        res = self.client.do(
+            model=self.model_name,
+            query=query,
+            documents=texts,
+            top_n=len(texts),
+        ).body
+        rank = np.array([d["relevance_score"] for d in res["results"]])
+        indexs = [d["index"] for d in res["results"]]
+        return rank[indexs], res["usage"]["total_tokens"]
