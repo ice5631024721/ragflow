@@ -125,7 +125,7 @@ def completion():
         e, conv = ConversationService.get_by_id(req["conversation_id"])
         if not e:
             return get_data_error_result(retmsg="Conversation not found!")
-        conv.message.append(deepcopy(msg[-1]))
+        conv.message = deepcopy(req["messages"])
         e, dia = DialogService.get_by_id(conv.dialog_id)
         if not e:
             return get_data_error_result(retmsg="Dialog not found!")
@@ -144,6 +144,7 @@ def completion():
             else: conv.reference[-1] = ans["reference"]
             conv.message[-1] = {"role": "assistant", "content": ans["answer"],
                                 "id": message_id, "prompt": ans.get("prompt", "")}
+            ans["id"] = message_id
 
         def stream():
             nonlocal dia, msg, req, conv
@@ -226,7 +227,7 @@ def delete_msg():
         assert conv["message"][i+1]["id"] == req["message_id"]
         conv["message"].pop(i)
         conv["message"].pop(i)
-        conv["reference"].pop(i)
+        conv["reference"].pop(max(0, i//2-1))
         break
 
     ConversationService.update_by_id(conv["id"], conv)
