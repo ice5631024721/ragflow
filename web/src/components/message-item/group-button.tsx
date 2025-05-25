@@ -1,3 +1,4 @@
+import { PromptIcon } from '@/assets/icon/Icon';
 import CopyToClipboard from '@/components/copy-to-clipboard';
 import { useSetModalState } from '@/hooks/common-hooks';
 import { IRemoveMessageById } from '@/hooks/logic-hooks';
@@ -5,15 +6,15 @@ import {
   DeleteOutlined,
   DislikeOutlined,
   LikeOutlined,
+  PauseCircleOutlined,
   SoundOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
 import { Radio, Tooltip } from 'antd';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import SvgIcon from '../svg-icon';
 import FeedbackModal from './feedback-modal';
-import { useRemoveMessage, useSendFeedback } from './hooks';
+import { useRemoveMessage, useSendFeedback, useSpeech } from './hooks';
 import PromptModal from './prompt-modal';
 
 interface IProps {
@@ -21,13 +22,17 @@ interface IProps {
   content: string;
   prompt?: string;
   showLikeButton: boolean;
+  audioBinary?: string;
+  showLoudspeaker?: boolean;
 }
 
 export const AssistantGroupButton = ({
   messageId,
   content,
   prompt,
+  audioBinary,
   showLikeButton,
+  showLoudspeaker = true,
 }: IProps) => {
   const { visible, hideModal, showModal, onFeedbackOk, loading } =
     useSendFeedback(messageId);
@@ -37,6 +42,7 @@ export const AssistantGroupButton = ({
     showModal: showPromptModal,
   } = useSetModalState();
   const { t } = useTranslation();
+  const { handleRead, ref, isPlaying } = useSpeech(content, audioBinary);
 
   const handleLike = useCallback(() => {
     onFeedbackOk({ thumbup: true });
@@ -48,11 +54,14 @@ export const AssistantGroupButton = ({
         <Radio.Button value="a">
           <CopyToClipboard text={content}></CopyToClipboard>
         </Radio.Button>
-        <Radio.Button value="b">
-          <Tooltip title={t('chat.read')}>
-            <SoundOutlined />
-          </Tooltip>
-        </Radio.Button>
+        {showLoudspeaker && (
+          <Radio.Button value="b" onClick={handleRead}>
+            <Tooltip title={t('chat.read')}>
+              {isPlaying ? <PauseCircleOutlined /> : <SoundOutlined />}
+            </Tooltip>
+            <audio src="" ref={ref}></audio>
+          </Radio.Button>
+        )}
         {showLikeButton && (
           <>
             <Radio.Button value="c" onClick={handleLike}>
@@ -65,7 +74,7 @@ export const AssistantGroupButton = ({
         )}
         {prompt && (
           <Radio.Button value="e" onClick={showPromptModal}>
-            <SvgIcon name={`prompt`} width={16}></SvgIcon>
+            <PromptIcon style={{ fontSize: '16px' }} />
           </Radio.Button>
         )}
       </Radio.Group>

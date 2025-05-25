@@ -1,19 +1,18 @@
 import { Authorization } from '@/constants/authorization';
 import { MessageType } from '@/constants/chat';
 import { LanguageTranslationMap } from '@/constants/common';
-import { Pagination } from '@/interfaces/common';
 import { ResponseType } from '@/interfaces/database/base';
 import { IAnswer, Message } from '@/interfaces/database/chat';
 import { IKnowledgeFile } from '@/interfaces/database/knowledge';
-import { IChangeParserConfigRequestBody } from '@/interfaces/request/document';
 import { IClientConversation, IMessage } from '@/pages/chat/interface';
 import api from '@/utils/api';
 import { getAuthorization } from '@/utils/authorization-util';
-import { buildMessageUuid, getMessagePureId } from '@/utils/chat';
-import { PaginationProps } from 'antd';
+import { buildMessageUuid } from '@/utils/chat';
+import { PaginationProps, message } from 'antd';
 import { FormInstance } from 'antd/lib';
 import axios from 'axios';
 import { EventSourceParserStream } from 'eventsource-parser/stream';
+import { omit } from 'lodash';
 import {
   ChangeEventHandler,
   useCallback,
@@ -23,44 +22,10 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useDispatch } from 'umi';
 import { v4 as uuid } from 'uuid';
-import { useSetModalState, useTranslate } from './common-hooks';
-import { useSetDocumentParser } from './document-hooks';
+import { useTranslate } from './common-hooks';
 import { useSetPaginationParams } from './route-hook';
-import { useOneNamespaceEffectsLoading } from './store-hooks';
 import { useFetchTenantInfo, useSaveSetting } from './user-setting-hooks';
-
-export const useChangeDocumentParser = (documentId: string) => {
-  const setDocumentParser = useSetDocumentParser();
-
-  const {
-    visible: changeParserVisible,
-    hideModal: hideChangeParserModal,
-    showModal: showChangeParserModal,
-  } = useSetModalState();
-  const loading = useOneNamespaceEffectsLoading('kFModel', [
-    'document_change_parser',
-  ]);
-
-  const onChangeParserOk = useCallback(
-    async (parserId: string, parserConfig: IChangeParserConfigRequestBody) => {
-      const ret = await setDocumentParser(parserId, documentId, parserConfig);
-      if (ret === 0) {
-        hideChangeParserModal();
-      }
-    },
-    [hideChangeParserModal, setDocumentParser, documentId],
-  );
-
-  return {
-    changeParserLoading: loading,
-    onChangeParserOk,
-    changeParserVisible,
-    hideChangeParserModal,
-    showChangeParserModal,
-  };
-};
 
 export const useSetSelectedRecord = <T = IKnowledgeFile>() => {
   const [currentRecord, setCurrentRecord] = useState<T>({} as T);
@@ -170,28 +135,6 @@ export const useGetPagination = () => {
   };
 };
 
-export const useSetPagination = (namespace: string) => {
-  const dispatch = useDispatch();
-
-  const setPagination = useCallback(
-    (pageNumber = 1, pageSize?: number) => {
-      const pagination: Pagination = {
-        current: pageNumber,
-      } as Pagination;
-      if (pageSize) {
-        pagination.pageSize = pageSize;
-      }
-      dispatch({
-        type: `${namespace}/setPagination`,
-        payload: pagination,
-      });
-    },
-    [dispatch, namespace],
-  );
-
-  return setPagination;
-};
-
 export interface AppConf {
   appName: string;
 }
@@ -216,11 +159,29 @@ export const useSendMessageWithSse = (
 ) => {
   const [answer, setAnswer] = useState<IAnswer>({} as IAnswer);
   const [done, setDone] = useState(true);
+  const timer = useRef<any>();
+  const sseRef = useRef<AbortController>();
+
+  const initializeSseRef = useCallback(() => {
+    sseRef.current = new AbortController();
+  }, []);
+
+  const resetAnswer = useCallback(() => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+    }
+    timer.current = setTimeout(() => {
+      setAnswer({} as IAnswer);
+      clearTimeout(timer.current);
+    }, 1000);
+  }, []);
 
   const send = useCallback(
     async (
       body: any,
+      controller?: AbortController,
     ): Promise<{ response: Response; data: ResponseType } | undefined> => {
+      initializeSseRef();
       try {
         setDone(false);
         const response = await fetch(url, {
@@ -230,6 +191,7 @@ export const useSendMessageWithSse = (
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(body),
+          signal: controller?.signal || sseRef.current?.signal,
         });
 
         const res = response.clone().json();
@@ -243,11 +205,16 @@ export const useSendMessageWithSse = (
           const x = await reader?.read();
           if (x) {
             const { done, value } = x;
+            if (done) {
+              console.info('done');
+              resetAnswer();
+              break;
+            }
             try {
               const val = JSON.parse(value?.data || '');
               const d = val?.data;
               if (typeof d !== 'boolean') {
-                // console.info('data:', d);
+                console.info('data:', d);
                 setAnswer({
                   ...d,
                   conversationId: body?.conversation_id,
@@ -256,24 +223,54 @@ export const useSendMessageWithSse = (
             } catch (e) {
               console.warn(e);
             }
-            if (done) {
-              console.info('done');
-              break;
-            }
           }
         }
         console.info('done?');
         setDone(true);
+        resetAnswer();
         return { data: await res, response };
       } catch (e) {
         setDone(true);
+        resetAnswer();
+
         console.warn(e);
       }
+    },
+    [initializeSseRef, url, resetAnswer],
+  );
+
+  const stopOutputMessage = useCallback(() => {
+    sseRef.current?.abort();
+  }, []);
+
+  return { send, answer, done, setDone, resetAnswer, stopOutputMessage };
+};
+
+export const useSpeechWithSse = (url: string = api.tts) => {
+  const read = useCallback(
+    async (body: any) => {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          [Authorization]: getAuthorization(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      try {
+        const res = await response.clone().json();
+        if (res?.code !== 0) {
+          message.error(res?.message);
+        }
+      } catch (error) {
+        console.warn('🚀 ~ error:', error);
+      }
+      return response;
     },
     [url],
   );
 
-  return { send, answer, done, setDone };
+  return { read };
 };
 
 //#region chat hooks
@@ -297,7 +294,7 @@ export const useScrollToBottom = (messages?: unknown) => {
 export const useHandleMessageInputChange = () => {
   const [value, setValue] = useState('');
 
-  const handleInputChange: ChangeEventHandler<HTMLInputElement> = (e) => {
+  const handleInputChange: ChangeEventHandler<HTMLTextAreaElement> = (e) => {
     const value = e.target.value;
     const nextValue = value.replaceAll('\\n', '\n').replaceAll('\\t', '\t');
     setValue(nextValue);
@@ -322,7 +319,9 @@ export const useSelectDerivedMessages = () => {
           ...pre,
           {
             ...message,
-            id: buildMessageUuid(message),
+            id: buildMessageUuid(message), // The message id is generated on the front end,
+            // and the message id returned by the back end is the same as the question id,
+            //  so that the pair of messages can be deleted together when deleting the message
           },
           {
             role: MessageType.Assistant,
@@ -349,6 +348,8 @@ export const useSelectDerivedMessages = () => {
             role: MessageType.Assistant,
           }),
           prompt: answer.prompt,
+          audio_binary: answer.audio_binary,
+          ...omit(answer, 'reference'),
         },
       ];
     });
@@ -364,10 +365,7 @@ export const useSelectDerivedMessages = () => {
   const removeMessageById = useCallback(
     (messageId: string) => {
       setDerivedMessages((pre) => {
-        const nextMessages =
-          pre?.filter(
-            (x) => getMessagePureId(x.id) !== getMessagePureId(messageId),
-          ) ?? [];
+        const nextMessages = pre?.filter((x) => x.id !== messageId) ?? [];
         return nextMessages;
       });
     },
@@ -415,30 +413,6 @@ export const useSelectDerivedMessages = () => {
 export interface IRemoveMessageById {
   removeMessageById(messageId: string): void;
 }
-
-export const useRemoveMessageById = (
-  setCurrentConversation: (
-    callback: (state: IClientConversation) => IClientConversation,
-  ) => void,
-) => {
-  const removeMessageById = useCallback(
-    (messageId: string) => {
-      setCurrentConversation((pre) => {
-        const nextMessages =
-          pre.message?.filter(
-            (x) => getMessagePureId(x.id) !== getMessagePureId(messageId),
-          ) ?? [];
-        return {
-          ...pre,
-          message: nextMessages,
-        };
-      });
-    },
-    [setCurrentConversation],
-  );
-
-  return { removeMessageById };
-};
 
 export const useRemoveMessagesAfterCurrentMessage = (
   setCurrentConversation: (
@@ -544,7 +518,7 @@ export const useSelectItem = (defaultId?: string) => {
 };
 
 export const useFetchModelId = () => {
-  const { data: tenantInfo } = useFetchTenantInfo();
+  const { data: tenantInfo } = useFetchTenantInfo(true);
 
   return tenantInfo?.llm_id ?? '';
 };
@@ -569,4 +543,25 @@ export const useHandleChunkMethodSelectChange = (form: FormInstance) => {
   );
 
   return handleChange;
+};
+
+// reset form fields when modal is form, closed
+export const useResetFormOnCloseModal = ({
+  form,
+  visible,
+}: {
+  form: FormInstance;
+  visible?: boolean;
+}) => {
+  const prevOpenRef = useRef<boolean>();
+  useEffect(() => {
+    prevOpenRef.current = visible;
+  }, [visible]);
+  const prevOpen = prevOpenRef.current;
+
+  useEffect(() => {
+    if (!visible && prevOpen) {
+      form.resetFields();
+    }
+  }, [form, prevOpen, visible]);
 };

@@ -1,3 +1,6 @@
+#
+#  Copyright 2025 The InfiniFlow Authors. All Rights Reserved.
+#
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
 #  You may obtain a copy of the License at
@@ -10,6 +13,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
+
 import copy
 import re
 from io import BytesIO
@@ -32,11 +36,14 @@ class Ppt(PptParser):
         imgs = []
         with slides.Presentation(BytesIO(fnm)) as presentation:
             for i, slide in enumerate(presentation.slides[from_page: to_page]):
-                buffered = BytesIO()
-                slide.get_thumbnail(
-                    0.5, 0.5).save(
-                    buffered, drawing.imaging.ImageFormat.jpeg)
-                imgs.append(Image.open(buffered))
+                try:
+                    buffered = BytesIO()
+                    slide.get_thumbnail(
+                        0.5, 0.5).save(
+                        buffered, drawing.imaging.ImageFormat.jpeg)
+                    imgs.append(Image.open(buffered))
+                except RuntimeError as e:
+                    raise RuntimeError(f'ppt parse error at page {i+1}, original error: {str(e)}') from e
         assert len(imgs) == len(
             txts), "Slides text and image do not match: {} vs. {}".format(len(imgs), len(txts))
         callback(0.9, "Image extraction finished")
@@ -58,11 +65,12 @@ class Pdf(PdfParser):
 
     def __call__(self, filename, binary=None, from_page=0,
                  to_page=100000, zoomin=3, callback=None):
-        callback(msg="OCR is running...")
+        from timeit import default_timer as timer
+        start = timer()
+        callback(msg="OCR started")
         self.__images__(filename if not binary else binary,
                         zoomin, from_page, to_page, callback)
-        callback(0.8, "Page {}~{}: OCR finished".format(
-            from_page, min(to_page, self.total_page)))
+        callback(msg="Page {}~{}: OCR finished ({:.2f}s)".format(from_page, min(to_page, self.total_page), timer() - start))
         assert len(self.boxes) == len(self.page_images), "{} vs. {}".format(
             len(self.boxes), len(self.page_images))
         res = []
@@ -107,6 +115,7 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
             d = copy.deepcopy(doc)
             pn += from_page
             d["image"] = img
+            d["doc_type_kwd"] = "image"
             d["page_num_int"] = [pn + 1]
             d["top_int"] = [0]
             d["position_int"] = [(pn + 1, 0, img.size[0], 0, img.size[1])]
@@ -114,9 +123,9 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
             res.append(d)
         return res
     elif re.search(r"\.pdf$", filename, re.IGNORECASE):
-        pdf_parser = Pdf() if kwargs.get(
-            "parser_config", {}).get(
-            "layout_recognize", True) else PlainPdf()
+        pdf_parser = Pdf()
+        if kwargs.get("layout_recognize", "DeepDOC") == "Plain Text":
+            pdf_parser = PlainParser()
         for pn, (txt, img) in enumerate(pdf_parser(filename, binary,
                                                    from_page=from_page, to_page=to_page, callback=callback)):
             d = copy.deepcopy(doc)
@@ -125,8 +134,7 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
                 d["image"] = img
             d["page_num_int"] = [pn + 1]
             d["top_int"] = [0]
-            d["position_int"] = [
-                (pn + 1, 0, img.size[0] if img else 0, 0, img.size[1] if img else 0)]
+            d["position_int"] = [(pn + 1, 0, img.size[0] if img else 0, 0, img.size[1] if img else 0)]
             tokenize(d, txt, eng)
             res.append(d)
         return res

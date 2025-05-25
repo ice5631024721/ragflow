@@ -1,7 +1,12 @@
+import { IRenameTag } from '@/interfaces/database/knowledge';
+import {
+  IFetchDocumentListRequestBody,
+  IFetchKnowledgeListRequestBody,
+  IFetchKnowledgeListRequestParams,
+} from '@/interfaces/request/knowledge';
 import api from '@/utils/api';
 import registerServer from '@/utils/register-server';
-import request from '@/utils/request';
-import pureRequest from 'umi-request';
+import request, { post } from '@/utils/request';
 
 const {
   create_kb,
@@ -25,12 +30,13 @@ const {
   retrieval_test,
   document_rename,
   document_run,
-  get_document_file,
   document_upload,
   web_crawl,
   knowledge_graph,
   document_infos,
   upload_and_parse,
+  listTagByKnowledgeIds,
+  setMeta,
 } = api;
 
 const methods = {
@@ -53,9 +59,9 @@ const methods = {
   },
   getList: {
     url: kb_list,
-    method: 'get',
+    method: 'post',
   },
-  // 文件管理
+  // document manager
   get_document_list: {
     url: get_document_list,
     method: 'get',
@@ -100,6 +106,10 @@ const methods = {
     url: document_infos,
     method: 'post',
   },
+  setMeta: {
+    url: setMeta,
+    method: 'post',
+  },
   // chunk管理
   chunk_list: {
     url: chunk_list,
@@ -141,43 +151,41 @@ const methods = {
     url: upload_and_parse,
     method: 'post',
   },
+  listTagByKnowledgeIds: {
+    url: listTagByKnowledgeIds,
+    method: 'get',
+  },
 };
 
 const kbService = registerServer<keyof typeof methods>(methods, request);
 
-export const getDocumentFile = (documentId: string) => {
-  return pureRequest(get_document_file + '/' + documentId, {
-    responseType: 'blob',
-    method: 'get',
-    parseResponse: false,
-    // getResponse: true,
-  })
-    .then((res) => {
-      const x = res.headers.get('content-disposition');
-      console.info(res);
-      console.info(x);
-      return res.blob();
-    })
-    .then((res) => {
-      // const objectURL = URL.createObjectURL(res);
+export const listTag = (knowledgeId: string) =>
+  request.get(api.listTag(knowledgeId));
 
-      // let btn = document.createElement('a');
+export const removeTag = (knowledgeId: string, tags: string[]) =>
+  post(api.removeTag(knowledgeId), { tags });
 
-      // btn.download = '文件名.pdf';
+export const renameTag = (
+  knowledgeId: string,
+  { fromTag, toTag }: IRenameTag,
+) => post(api.renameTag(knowledgeId), { fromTag, toTag });
 
-      // btn.href = objectURL;
+export function getKnowledgeGraph(knowledgeId: string) {
+  return request.get(api.getKnowledgeGraph(knowledgeId));
+}
 
-      // btn.click();
+export function deleteKnowledgeGraph(knowledgeId: string) {
+  return request.delete(api.getKnowledgeGraph(knowledgeId));
+}
 
-      // URL.revokeObjectURL(objectURL);
+export const listDataset = (
+  params?: IFetchKnowledgeListRequestParams,
+  body?: IFetchKnowledgeListRequestBody,
+) => request.post(api.kb_list, { data: body || {}, params });
 
-      // btn = null;
-
-      return res;
-    })
-    .catch((err) => {
-      console.info(err);
-    });
-};
+export const listDocument = (
+  params?: IFetchKnowledgeListRequestParams,
+  body?: IFetchDocumentListRequestBody,
+) => request.post(api.get_document_list, { data: body || {}, params });
 
 export default kbService;

@@ -1,14 +1,40 @@
+import KnowledgeBaseItem from '@/components/knowledge-base-item';
+import { TavilyItem } from '@/components/tavily-item';
+import { useTranslate } from '@/hooks/common-hooks';
+import { useFetchTenantInfo } from '@/hooks/user-setting-hooks';
 import { PlusOutlined } from '@ant-design/icons';
-import { Form, Input, Select, Switch, Upload } from 'antd';
+import { Form, Input, message, Select, Switch, Upload } from 'antd';
 import classNames from 'classnames';
+import { useCallback } from 'react';
 import { ISegmentedContentProps } from '../interface';
 
-import KnowledgeBaseItem from '@/components/knowledge-base-item';
-import { useTranslate } from '@/hooks/common-hooks';
 import styles from './index.less';
 
-const AssistantSetting = ({ show }: ISegmentedContentProps) => {
+const emptyResponseField = ['prompt_config', 'empty_response'];
+
+const AssistantSetting = ({
+  show,
+  form,
+  setHasError,
+}: ISegmentedContentProps) => {
   const { t } = useTranslate('chat');
+  const { data } = useFetchTenantInfo(true);
+
+  const handleChange = useCallback(() => {
+    const kbIds = form.getFieldValue('kb_ids');
+    const emptyResponse = form.getFieldValue(emptyResponseField);
+
+    const required =
+      emptyResponse && ((Array.isArray(kbIds) && kbIds.length === 0) || !kbIds);
+
+    setHasError(required);
+    form.setFields([
+      {
+        name: emptyResponseField,
+        errors: required ? [t('emptyResponseMessage')] : [],
+      },
+    ]);
+  }, [form, setHasError, t]);
 
   const normFile = (e: any) => {
     if (Array.isArray(e)) {
@@ -17,7 +43,18 @@ const AssistantSetting = ({ show }: ISegmentedContentProps) => {
     return e?.fileList;
   };
 
-  const uploadButtion = (
+  const handleTtsChange = useCallback(
+    (checked: boolean) => {
+      if (checked && !data.tts_id) {
+        message.error(`Please set TTS model firstly. 
+        Setting >> Model providers >> System model settings`);
+        form.setFieldValue(['prompt_config', 'tts'], false);
+      }
+    },
+    [data, form],
+  );
+
+  const uploadButton = (
     <button style={{ border: 0, background: 'none' }} type="button">
       <PlusOutlined />
       <div style={{ marginTop: 8 }}>{t('upload', { keyPrefix: 'common' })}</div>
@@ -37,6 +74,9 @@ const AssistantSetting = ({ show }: ISegmentedContentProps) => {
       >
         <Input placeholder={t('namePlaceholder')} />
       </Form.Item>
+      <Form.Item name={'description'} label={t('description')}>
+        <Input placeholder={t('descriptionPlaceholder')} />
+      </Form.Item>
       <Form.Item
         name="icon"
         label={t('assistantAvatar')}
@@ -49,7 +89,7 @@ const AssistantSetting = ({ show }: ISegmentedContentProps) => {
           beforeUpload={() => false}
           showUploadList={{ showPreviewIcon: false, showRemoveIcon: false }}
         >
-          {show ? uploadButtion : null}
+          {show ? uploadButton : null}
         </Upload>
       </Form.Item>
       <Form.Item
@@ -67,11 +107,11 @@ const AssistantSetting = ({ show }: ISegmentedContentProps) => {
         />
       </Form.Item>
       <Form.Item
-        name={['prompt_config', 'empty_response']}
+        name={emptyResponseField}
         label={t('emptyResponse')}
         tooltip={t('emptyResponseTip')}
       >
-        <Input placeholder="" />
+        <Input placeholder="" onChange={handleChange} />
       </Form.Item>
       <Form.Item
         name={['prompt_config', 'prologue']}
@@ -91,15 +131,28 @@ const AssistantSetting = ({ show }: ISegmentedContentProps) => {
         <Switch />
       </Form.Item>
       <Form.Item
-        label={t('selfRag')}
+        label={t('keyword')}
         valuePropName="checked"
-        name={['prompt_config', 'self_rag']}
-        tooltip={t('selfRagTip')}
+        name={['prompt_config', 'keyword']}
+        tooltip={t('keywordTip')}
         initialValue={false}
       >
         <Switch />
       </Form.Item>
-      <KnowledgeBaseItem></KnowledgeBaseItem>
+      <Form.Item
+        label={t('tts')}
+        valuePropName="checked"
+        name={['prompt_config', 'tts']}
+        tooltip={t('ttsTip')}
+        initialValue={false}
+      >
+        <Switch onChange={handleTtsChange} />
+      </Form.Item>
+      <TavilyItem></TavilyItem>
+      <KnowledgeBaseItem
+        required={false}
+        onChange={handleChange}
+      ></KnowledgeBaseItem>
     </section>
   );
 };

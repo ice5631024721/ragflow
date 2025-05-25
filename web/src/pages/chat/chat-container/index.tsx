@@ -1,9 +1,7 @@
 import MessageItem from '@/components/message-item';
-import DocumentPreviewer from '@/components/pdf-previewer';
 import { MessageType } from '@/constants/chat';
-import { Drawer, Flex, Spin } from 'antd';
+import { Flex, Spin } from 'antd';
 import {
-  useClickDrawer,
   useCreateConversationBeforeUploadDocument,
   useGetFileIcon,
   useGetSendButtonDisabled,
@@ -13,29 +11,40 @@ import {
 import { buildMessageItemReference } from '../utils';
 
 import MessageInput from '@/components/message-input';
+import PdfDrawer from '@/components/pdf-drawer';
+import { useClickDrawer } from '@/components/pdf-drawer/hooks';
 import {
   useFetchNextConversation,
   useGetChatSearchParams,
+  useFetchNextDialog,
 } from '@/hooks/chat-hooks';
 import { useFetchUserInfo } from '@/hooks/user-setting-hooks';
+import { buildMessageUuidWithRole } from '@/utils/chat';
 import { memo } from 'react';
 import styles from './index.less';
 
-const ChatContainer = () => {
+interface IProps {
+  controller: AbortController;
+}
+
+const ChatContainer = ({ controller }: IProps) => {
   const { conversationId } = useGetChatSearchParams();
   const { data: conversation } = useFetchNextConversation();
+  const { data: currentDialog } = useFetchNextDialog();
+    
 
   const {
+    value,
     ref,
     loading,
     sendLoading,
     derivedMessages,
     handleInputChange,
     handlePressEnter,
-    value,
     regenerateMessage,
     removeMessageById,
-  } = useSendNextMessage();
+    stopOutputMessage,
+  } = useSendNextMessage(controller);
 
   const { visible, hideModal, documentId, selectedChunk, clickDocumentButton } =
     useClickDrawer();
@@ -60,10 +69,11 @@ const ChatContainer = () => {
                       sendLoading &&
                       derivedMessages.length - 1 === i
                     }
-                    key={message.id}
+                    key={buildMessageUuidWithRole(message)}
                     item={message}
                     nickname={userInfo.nickname}
                     avatar={userInfo.avatar}
+                    avatarDialog={currentDialog.icon}
                     reference={buildMessageItemReference(
                       {
                         message: derivedMessages,
@@ -94,20 +104,15 @@ const ChatContainer = () => {
           createConversationBeforeUploadDocument={
             createConversationBeforeUploadDocument
           }
+          stopOutputMessage={stopOutputMessage}
         ></MessageInput>
       </Flex>
-      <Drawer
-        title="Document Previewer"
-        onClose={hideModal}
-        open={visible}
-        width={'50vw'}
-      >
-        <DocumentPreviewer
-          documentId={documentId}
-          chunk={selectedChunk}
-          visible={visible}
-        ></DocumentPreviewer>
-      </Drawer>
+      <PdfDrawer
+        visible={visible}
+        hideModal={hideModal}
+        documentId={documentId}
+        chunk={selectedChunk}
+      ></PdfDrawer>
     </>
   );
 };

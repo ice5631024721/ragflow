@@ -1,10 +1,14 @@
 import { Authorization } from '@/constants/authorization';
-import userService from '@/services/user-service';
-import authorizationUtil from '@/utils/authorization-util';
-import { useMutation } from '@tanstack/react-query';
-import { message } from 'antd';
+import userService, {
+  getLoginChannels,
+  loginWithChannel,
+} from '@/services/user-service';
+import authorizationUtil, { redirectToLogin } from '@/utils/authorization-util';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { Form, message } from 'antd';
+import { FormInstance } from 'antd/lib';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { history } from 'umi';
 
 export interface ILoginRequestBody {
   email: string;
@@ -14,6 +18,36 @@ export interface ILoginRequestBody {
 export interface IRegisterRequestBody extends ILoginRequestBody {
   nickname: string;
 }
+
+export interface ILoginChannel {
+  channel: string;
+  display_name: string;
+  icon: string;
+}
+
+export const useLoginChannels = () => {
+  const { data, isLoading } = useQuery({
+    queryKey: ['loginChannels'],
+    queryFn: async () => {
+      const { data: res = {} } = await getLoginChannels();
+      return res.data || [];
+    },
+  });
+
+  return { channels: data as ILoginChannel[], loading: isLoading };
+};
+
+export const useLoginWithChannel = () => {
+  const { isPending: loading, mutateAsync } = useMutation({
+    mutationKey: ['loginWithChannel'],
+    mutationFn: async (channel: string) => {
+      loginWithChannel(channel);
+      return Promise.resolve();
+    },
+  });
+
+  return { loading, login: mutateAsync };
+};
 
 export const useLogin = () => {
   const { t } = useTranslation();
@@ -26,7 +60,7 @@ export const useLogin = () => {
     mutationKey: ['login'],
     mutationFn: async (params: { email: string; password: string }) => {
       const { data: res = {}, response } = await userService.login(params);
-      if (res.retcode === 0) {
+      if (res.code === 0) {
         const { data } = res;
         message.success(t('message.logged'));
         const authorization = response.headers.get(Authorization);
@@ -42,7 +76,7 @@ export const useLogin = () => {
           Token: token,
         });
       }
-      return res.retcode;
+      return res.code;
     },
   });
 
@@ -64,10 +98,17 @@ export const useRegister = () => {
       nickname: string;
     }) => {
       const { data = {} } = await userService.register(params);
-      if (data.retcode === 0) {
+      if (data.code === 0) {
         message.success(t('message.registered'));
+      } else if (
+        data.message &&
+        data.message.includes('registration is disabled')
+      ) {
+        message.error(
+          t('message.registerDisabled') || 'User registration is disabled',
+        );
       }
-      return data.retcode;
+      return data.code;
     },
   });
 
@@ -84,14 +125,30 @@ export const useLogout = () => {
     mutationKey: ['logout'],
     mutationFn: async () => {
       const { data = {} } = await userService.logout();
-      if (data.retcode === 0) {
+      if (data.code === 0) {
         message.success(t('message.logout'));
         authorizationUtil.removeAll();
-        history.push('/login');
+        redirectToLogin();
       }
-      return data.retcode;
+      return data.code;
     },
   });
 
   return { data, loading, logout: mutateAsync };
+};
+
+export const useHandleSubmittable = (form: FormInstance) => {
+  const [submittable, setSubmittable] = useState<boolean>(false);
+
+  // Watch all values
+  const values = Form.useWatch([], form);
+
+  useEffect(() => {
+    form
+      .validateFields({ validateOnly: true })
+      .then(() => setSubmittable(true))
+      .catch(() => setSubmittable(false));
+  }, [form, values]);
+
+  return { submittable };
 };

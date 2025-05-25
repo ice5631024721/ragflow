@@ -5,11 +5,11 @@ import { ReactComponent as EnableIcon } from '@/assets/svg/enable.svg';
 import { ReactComponent as RunIcon } from '@/assets/svg/run.svg';
 import { useShowDeleteConfirm, useTranslate } from '@/hooks/common-hooks';
 import {
-  useRemoveDocument,
-  useRunDocument,
-  useSetDocumentStatus,
+  useRemoveNextDocument,
+  useRunNextDocument,
+  useSetNextDocumentStatus,
 } from '@/hooks/document-hooks';
-import { useGetKnowledgeSearchParams } from '@/hooks/route-hook';
+import { IDocumentInfo } from '@/interfaces/database/document';
 import {
   DownOutlined,
   FileOutlined,
@@ -19,11 +19,9 @@ import {
 } from '@ant-design/icons';
 import { Button, Dropdown, Flex, Input, MenuProps, Space } from 'antd';
 import { useCallback, useMemo } from 'react';
-import {
-  useFetchDocumentListOnMount,
-  useGetPagination,
-  useHandleSearchChange,
-} from './hooks';
+import { toast } from 'sonner';
+import { RunningStatus } from './constant';
+
 import styles from './index.less';
 
 interface IProps {
@@ -31,23 +29,24 @@ interface IProps {
   showCreateModal(): void;
   showWebCrawlModal(): void;
   showDocumentUploadModal(): void;
+  searchString: string;
+  handleInputChange: React.ChangeEventHandler<HTMLInputElement>;
+  documents: IDocumentInfo[];
 }
 
 const DocumentToolbar = ({
+  searchString,
   selectedRowKeys,
   showCreateModal,
-  showWebCrawlModal,
   showDocumentUploadModal,
+  handleInputChange,
+  documents,
 }: IProps) => {
   const { t } = useTranslate('knowledgeDetails');
-  const { fetchDocumentList } = useFetchDocumentListOnMount();
-  const { setPagination, searchString } = useGetPagination(fetchDocumentList);
-  const { handleInputChange } = useHandleSearchChange(setPagination);
-  const removeDocument = useRemoveDocument();
+  const { removeDocument } = useRemoveNextDocument();
   const showDeleteConfirm = useShowDeleteConfirm();
-  const runDocumentByIds = useRunDocument();
-  const { knowledgeId } = useGetKnowledgeSearchParams();
-  const changeStatus = useSetDocumentStatus();
+  const { runDocumentByIds } = useRunNextDocument();
+  const { setDocumentStatus } = useSetNextDocumentStatus();
 
   const actionItems: MenuProps['items'] = useMemo(() => {
     return [
@@ -66,19 +65,6 @@ const DocumentToolbar = ({
         ),
       },
       { type: 'divider' },
-      // {
-      //   key: '2',
-      //   onClick: showWebCrawlModal,
-      //   label: (
-      //     <div>
-      //       <Button type="link">
-      //         <FileTextOutlined />
-      //         {t('webCrawl')}
-      //       </Button>
-      //     </div>
-      //   ),
-      // },
-      { type: 'divider' },
       {
         key: '3',
         onClick: showCreateModal,
@@ -95,22 +81,32 @@ const DocumentToolbar = ({
   }, [showDocumentUploadModal, showCreateModal, t]);
 
   const handleDelete = useCallback(() => {
+    const deletedKeys = selectedRowKeys.filter(
+      (x) =>
+        !documents
+          .filter((y) => y.run === RunningStatus.RUNNING)
+          .some((y) => y.id === x),
+    );
+    if (deletedKeys.length === 0) {
+      toast.error(t('theDocumentBeingParsedCannotBeDeleted'));
+      return;
+    }
     showDeleteConfirm({
       onOk: () => {
-        removeDocument(selectedRowKeys);
+        removeDocument(deletedKeys);
       },
     });
-  }, [removeDocument, showDeleteConfirm, selectedRowKeys]);
+  }, [selectedRowKeys, showDeleteConfirm, documents, t, removeDocument]);
 
   const runDocument = useCallback(
     (run: number) => {
       runDocumentByIds({
-        doc_ids: selectedRowKeys,
+        documentIds: selectedRowKeys,
         run,
-        knowledgeBaseId: knowledgeId,
+        shouldDelete: false,
       });
     },
-    [runDocumentByIds, selectedRowKeys, knowledgeId],
+    [runDocumentByIds, selectedRowKeys],
   );
 
   const handleRunClick = useCallback(() => {
@@ -124,10 +120,10 @@ const DocumentToolbar = ({
   const onChangeStatus = useCallback(
     (enabled: boolean) => {
       selectedRowKeys.forEach((id) => {
-        changeStatus(enabled, id);
+        setDocumentStatus({ status: enabled, documentId: id });
       });
     },
-    [selectedRowKeys, changeStatus],
+    [selectedRowKeys, setDocumentStatus],
   );
 
   const handleEnableClick = useCallback(() => {
