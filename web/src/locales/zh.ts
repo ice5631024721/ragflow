@@ -160,7 +160,7 @@ export default {
       cancel: '取消',
       rerankModel: 'Rerank模型',
       rerankPlaceholder: '请选择',
-      rerankTip: `非必选项：若不选择 rerank 模型，系统将默认采用关键词相似度与向量余弦相似度相结合的混合查询方式；如果设置了 rerank 模型，则混合查询中的向量相似度部分将被 rerank 打分替代。请注意：采用 rerank 模型会非常耗时。`,
+      rerankTip: `非必选项：若不选择 rerank 模型，系统将默认采用关键词相似度与向量余弦相似度相结合的混合查询方式；如果设置了 rerank 模型，则混合查询中的向量相似度部分将被 rerank 打分替代。请注意：采用 rerank 模型会非常耗时。如需选用 rerank 模型，建议使用 SaaS 的 rerank 模型服务；如果你倾向使用本地部署的 rerank 模型，请务必确保你使用 docker-compose-gpu.yml 启动 RAGFlow。`,
       topK: 'Top-K',
       topKTip: `与 Rerank 模型配合使用，用于设置传给 Rerank 模型的文本块数量。`,
       delimiter: `文本分段标识符`,
@@ -247,7 +247,7 @@ export default {
       我们假设手册具有分层部分结构。 我们使用最低的部分标题作为对文档进行切片的枢轴。
       因此，同一部分中的图和表不会被分割，并且块大小可能会很大。
       </p>`,
-      naive: `<p>支持的文件格式为<b>DOCX、XLSX、XLS (Excel 97-2003)、PPT、PDF、TXT、JPEG、JPG、PNG、TIF、GIF、CSV、JSON、EML、HTML</b>。</p>
+      naive: `<p>支持的文件格式为<b>MD、MDX、DOCX、XLSX、XLS (Excel 97-2003)、PPT、PDF、TXT、JPEG、JPG、PNG、TIF、GIF、CSV、JSON、EML、HTML</b>。</p>
       <p>此方法将简单的方法应用于块文件：</p>
       <p>
       <li>系统将使用视觉检测模型将连续文本分割成多个片段。</li>

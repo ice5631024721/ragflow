@@ -160,7 +160,7 @@ export default {
       cancel: '取消',
       rerankModel: 'rerank模型',
       rerankPlaceholder: '請選擇',
-      rerankTip: `如果是空的。它使用查詢和塊的嵌入來構成矢量餘弦相似性。否則，它使用rerank評分代替矢量餘弦相似性。`,
+      rerankTip: `非必選項：若不選擇 rerank 模型，系統將默認採用關鍵詞相似度與向量餘弦相似度相結合的混合查詢方式；如果設定了 rerank 模型，則混合查詢中的向量相似度部分將被 rerank 打分替代。請注意：採用 rerank 模型會非常耗時。如需選用 rerank 模型，建議使用 SaaS 的 rerank 模型服務；如果你傾向使用本地部署的 rerank 模型，請務必確保你使用 docker-compose-gpu.yml 啟動 RAGFlow。`,
       topK: 'Top-K',
       topKTip: `與 Rerank 模型配合使用，用於設定傳給 Rerank 模型的文本塊數量。`,
       delimiter: `文字分段標識符`,
@@ -246,7 +246,7 @@ export default {
         我們假設手冊具有分層部分結構。我們使用最低的部分標題作為對文檔進行切片的樞軸。
         因此，同一部分中的圖和表不會被分割，並且塊大小可能會很大。
         </p>`,
-      naive: `<p>支持的文件格式為<b>DOCX、XLSX、XLS (Excel 97-2003)、PPT、PDF、TXT、JPEG、JPG、PNG、TIF、GIF、CSV、JSON、EML、HTML</b>。</p>
+      naive: `<p>支持的文件格式為<b>MD、MDX、DOCX、XLSX、XLS (Excel 97-2003)、PPT、PDF、TXT、JPEG、JPG、PNG、TIF、GIF、CSV、JSON、EML、HTML</b>。</p>
         <p>此方法將簡單的方法應用於塊文件：</p>
         <p>
         <li>系統將使用視覺檢測模型將連續文本分割成多個片段。</li>
