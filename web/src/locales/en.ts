@@ -236,7 +236,7 @@ export default {
       methodTitle: 'Chunking method description',
       methodExamples: 'Examples',
       methodExamplesDescription:
-        'The following screenshots are provided for clarity.',
+        'The following screenshots are provided for clarification.',
       dialogueExamplesTitle: 'view',
       methodEmpty:
         'This will display a visual explanation of the knowledge base categories',
@@ -1278,6 +1278,10 @@ This delimiter is used to split the input text into several text pieces echo of 
       modeTip: 'The mode defines how the workflow is initiated.',
       beginInputTip:
         'By defining input parameters, this content can be accessed by other components in subsequent processes.',
+      query: 'Query variables',
+      agent: 'Agent',
+      agentDescription:
+        'Builds agent components equipped with reasoning, tool usage, and multi-agent collaboration. ',
     },
     llmTools: {
       bad_calculator: {
