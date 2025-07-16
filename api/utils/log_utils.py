@@ -30,7 +30,7 @@ def get_project_base_directory():
     )
     return PROJECT_BASE
 
-def initRootLogger(logfile_basename: str, log_format: str = "%(asctime)-15s %(levelname)-8s %(process)d %(message)s"):
+def init_root_logger(logfile_basename: str, log_format: str = "%(asctime)-15s %(levelname)-8s %(process)d %(message)s"):
     global initialized_root_logger
     if initialized_root_logger:
         return
@@ -83,5 +83,9 @@ def initRootLogger(logfile_basename: str, log_format: str = "%(asctime)-15s %(le
 def log_exception(e, *args):
     logging.exception(e)
     for a in args:
-        logging.error(str(a))
+        if hasattr(a, "text"):
+            logging.error(a.text)
+            raise Exception(a.text)
+        else:
+            logging.error(str(a))
     raise e

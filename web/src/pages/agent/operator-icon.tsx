@@ -9,7 +9,7 @@ interface IProps {
 }
 
 export const OperatorIconMap = {
-  [Operator.Retrieval]: 'retrival-0',
+  [Operator.Retrieval]: 'KR',
   // [Operator.Generate]: MergeCellsOutlined,
   // [Operator.Answer]: SendOutlined,
   [Operator.Begin]: CirclePlay,
@@ -19,6 +19,9 @@ export const OperatorIconMap = {
   [Operator.Switch]: 'condition',
   [Operator.Code]: 'code-set',
   [Operator.Agent]: 'agent-ai',
+  [Operator.UserFillUp]: 'await',
+  [Operator.StringTransform]: 'a-textprocessing',
+  [Operator.Note]: 'notebook-pen',
   // [Operator.Relevant]: BranchesOutlined,
   // [Operator.RewriteQuestion]: FormOutlined,
   // [Operator.KeywordExtract]: KeywordIcon,

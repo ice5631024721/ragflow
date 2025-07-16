@@ -25,6 +25,7 @@ from peewee import OperationalError
 from pydantic import BaseModel, Field, validator
 
 from api import settings
+from api.constants import FILE_NAME_LEN_LIMIT
 from api.db import FileSource, FileType, LLMType, ParserType, TaskStatus
 from api.db.db_models import File, Task
 from api.db.services.document_service import DocumentService
@@ -129,8 +130,8 @@ def upload(dataset_id, tenant_id):
     for file_obj in file_objs:
         if file_obj.filename == "":
             return get_result(message="No file selected!", code=settings.RetCode.ARGUMENT_ERROR)
-        if len(file_obj.filename.encode("utf-8")) >= 128:
-            return get_result(message="File name should be less than 128 bytes.", code=settings.RetCode.ARGUMENT_ERROR)
+        if len(file_obj.filename.encode("utf-8")) > FILE_NAME_LEN_LIMIT:
+            return get_result(message=f"File name must be {FILE_NAME_LEN_LIMIT} bytes or less.", code=settings.RetCode.ARGUMENT_ERROR)
     """
     # total size
     total_size = 0
@@ -247,9 +248,9 @@ def update_doc(tenant_id, dataset_id, document_id):
         DocumentService.update_meta_fields(document_id, req["meta_fields"])
 
     if "name" in req and req["name"] != doc.name:
-        if len(req["name"].encode("utf-8")) >= 128:
+        if len(req["name"].encode("utf-8")) > FILE_NAME_LEN_LIMIT:
             return get_result(
-                message="The name should be less than 128 bytes.",
+                message=f"File name must be {FILE_NAME_LEN_LIMIT} bytes or less.",
                 code=settings.RetCode.ARGUMENT_ERROR,
             )
         if pathlib.Path(req["name"].lower()).suffix != pathlib.Path(doc.name.lower()).suffix:
@@ -299,7 +300,7 @@ def update_doc(tenant_id, dataset_id, document_id):
                 doc.kb_id,
                 doc.token_num * -1,
                 doc.chunk_num * -1,
-                doc.process_duation * -1,
+                doc.process_duration * -1,
             )
             if not e:
                 return get_error_data_result(message="Document not found!")
@@ -518,20 +519,20 @@ def list_docs(dataset_id, tenant_id):
 
     # rename key's name
     renamed_doc_list = []
+    key_mapping = {
+        "chunk_num": "chunk_count",
+        "kb_id": "dataset_id",
+        "token_num": "token_count",
+        "parser_id": "chunk_method",
+    }
+    run_mapping = {
+        "0": "UNSTART",
+        "1": "RUNNING",
+        "2": "CANCEL",
+        "3": "DONE",
+        "4": "FAIL",
+    }
     for doc in docs:
-        key_mapping = {
-            "chunk_num": "chunk_count",
-            "kb_id": "dataset_id",
-            "token_num": "token_count",
-            "parser_id": "chunk_method",
-        }
-        run_mapping = {
-            "0": "UNSTART",
-            "1": "RUNNING",
-            "2": "CANCEL",
-            "3": "DONE",
-            "4": "FAIL",
-        }
         renamed_doc = {}
         for key, value in doc.items():
             if key == "run":

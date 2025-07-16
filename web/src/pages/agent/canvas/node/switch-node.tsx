@@ -1,16 +1,16 @@
-import { IconFont } from '@/components/icon-font';
-import { useTheme } from '@/components/theme-provider';
 import { Card, CardContent } from '@/components/ui/card';
 import { ISwitchCondition, ISwitchNode } from '@/interfaces/database/flow';
-import { Handle, NodeProps, Position } from '@xyflow/react';
-import classNames from 'classnames';
+import { NodeProps, Position } from '@xyflow/react';
 import { memo, useCallback } from 'react';
-import { SwitchOperatorOptions } from '../../constant';
-import { useGetComponentLabelByValue } from '../../hooks/use-get-begin-query';
+import { NodeHandleId, SwitchOperatorOptions } from '../../constant';
+import { LogicalOperatorIcon } from '../../form/switch-form';
+import { useGetVariableLabelByValue } from '../../hooks/use-get-begin-query';
+import { CommonHandle } from './handle';
 import { RightHandleStyle } from './handle-icon';
-import { useBuildSwitchHandlePositions } from './hooks';
-import styles from './index.less';
-import NodeHeader, { ToolBar } from './node-header';
+import NodeHeader from './node-header';
+import { NodeWrapper } from './node-wrapper';
+import { ToolBar } from './toolbar';
+import { useBuildSwitchHandlePositions } from './use-build-switch-handle-positions';
 
 const getConditionKey = (idx: number, length: number) => {
   if (idx === 0 && length !== 1) {
@@ -25,16 +25,21 @@ const getConditionKey = (idx: number, length: number) => {
 const ConditionBlock = ({
   condition,
   nodeId,
-}: {
-  condition: ISwitchCondition;
-  nodeId: string;
-}) => {
+}: { condition: ISwitchCondition } & { nodeId: string }) => {
   const items = condition?.items ?? [];
-  const getLabel = useGetComponentLabelByValue(nodeId);
+  const getLabel = useGetVariableLabelByValue(nodeId);
 
   const renderOperatorIcon = useCallback((operator?: string) => {
-    const name = SwitchOperatorOptions.find((x) => x.value === operator)?.icon;
-    return <IconFont name={name!}></IconFont>;
+    const item = SwitchOperatorOptions.find((x) => x.value === operator);
+    if (item) {
+      return (
+        <LogicalOperatorIcon
+          icon={item?.icon}
+          value={item?.value}
+        ></LogicalOperatorIcon>
+      );
+    }
+    return <></>;
   }, []);
 
   return (
@@ -58,32 +63,17 @@ const ConditionBlock = ({
 
 function InnerSwitchNode({ id, data, selected }: NodeProps<ISwitchNode>) {
   const { positions } = useBuildSwitchHandlePositions({ data, id });
-  const { theme } = useTheme();
   return (
-    <ToolBar selected={selected}>
-      <section
-        className={classNames(
-          styles.logicNode,
-          theme === 'dark' ? styles.dark : '',
-          {
-            [styles.selectedNode]: selected,
-          },
-          'group/operator hover:bg-slate-100',
-        )}
-      >
-        <Handle
+    <ToolBar selected={selected} id={id} label={data.label}>
+      <NodeWrapper>
+        <CommonHandle
           type="target"
           position={Position.Left}
           isConnectable
-          className={styles.handle}
-          id={'a'}
-        ></Handle>
-        <NodeHeader
-          id={id}
-          name={data.name}
-          label={data.label}
-          className={styles.nodeHeader}
-        ></NodeHeader>
+          nodeId={id}
+          id={NodeHandleId.End}
+        ></CommonHandle>
+        <NodeHeader id={id} name={data.name} label={data.label}></NodeHeader>
         <section className="gap-2.5 flex flex-col">
           {positions.map((position, idx) => {
             return (
@@ -98,25 +88,26 @@ function InnerSwitchNode({ id, data, selected }: NodeProps<ISwitchNode>) {
                   </div>
                   {position.condition && (
                     <ConditionBlock
-                      nodeId={id}
                       condition={position.condition}
+                      nodeId={id}
                     ></ConditionBlock>
                   )}
                 </section>
-                <Handle
+                <CommonHandle
                   key={position.text}
                   id={position.text}
                   type="source"
                   position={Position.Right}
                   isConnectable
-                  className={styles.handle}
                   style={{ ...RightHandleStyle, top: position.top }}
-                ></Handle>
+                  nodeId={id}
+                  isConnectableEnd={false}
+                ></CommonHandle>
               </div>
             );
           })}
         </section>
-      </section>
+      </NodeWrapper>
     </ToolBar>
   );
 }
