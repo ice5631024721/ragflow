@@ -1,6 +1,5 @@
-import { LargeModelFormField } from '@/components/large-model-form-field';
+import NumberInput from '@/components/originui/number-input';
 import { SelectWithSearch } from '@/components/originui/select-with-search';
-import { TopNFormField } from '@/components/top-n-item';
 import { ButtonLoading } from '@/components/ui/button';
 import {
   Form,
@@ -10,7 +9,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input, NumberInput } from '@/components/ui/input';
+import { Input } from '@/components/ui/input';
 import { useTranslate } from '@/hooks/common-hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { memo } from 'react';
@@ -21,9 +20,13 @@ import { useFormValues } from '../../hooks/use-form-values';
 import { useWatchFormChange } from '../../hooks/use-watch-form-change';
 import { INextOperatorForm } from '../../interface';
 import { ExeSQLOptions } from '../../options';
+import { buildOutputList } from '../../utils/build-output-list';
 import { FormWrapper } from '../components/form-wrapper';
+import { Output } from '../components/output';
 import { QueryVariable } from '../components/query-variable';
 import { FormSchema, useSubmitForm } from './use-submit-form';
+
+const outputList = buildOutputList(initialExeSqlValues.outputs);
 
 export function ExeSQLFormWidgets({ loading }: { loading: boolean }) {
   const form = useFormContext();
@@ -31,7 +34,6 @@ export function ExeSQLFormWidgets({ loading }: { loading: boolean }) {
 
   return (
     <>
-      <LargeModelFormField></LargeModelFormField>
       <FormField
         control={form.control}
         name="db_type"
@@ -94,7 +96,7 @@ export function ExeSQLFormWidgets({ loading }: { loading: boolean }) {
           <FormItem>
             <FormLabel>{t('port')}</FormLabel>
             <FormControl>
-              <NumberInput {...field}></NumberInput>
+              <NumberInput {...field} className="w-full"></NumberInput>
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -113,20 +115,21 @@ export function ExeSQLFormWidgets({ loading }: { loading: boolean }) {
           </FormItem>
         )}
       />
+
       <FormField
         control={form.control}
-        name="loop"
+        name="max_records"
         render={({ field }) => (
           <FormItem>
-            <FormLabel tooltip={t('loopTip')}>{t('loop')}</FormLabel>
+            <FormLabel>{t('maxRecords')}</FormLabel>
             <FormControl>
-              <NumberInput {...field}></NumberInput>
+              <NumberInput {...field} className="w-full"></NumberInput>
             </FormControl>
             <FormMessage />
           </FormItem>
         )}
       />
-      <TopNFormField max={1000}></TopNFormField>
+
       <div className="flex justify-end">
         <ButtonLoading loading={loading} type="submit">
           Test
@@ -151,9 +154,12 @@ function ExeSQLForm({ node }: INextOperatorForm) {
   return (
     <Form {...form}>
       <FormWrapper onSubmit={form.handleSubmit(onSubmit)}>
-        <QueryVariable></QueryVariable>
+        <QueryVariable name="sql"></QueryVariable>
         <ExeSQLFormWidgets loading={loading}></ExeSQLFormWidgets>
       </FormWrapper>
+      <div className="p-5">
+        <Output list={outputList}></Output>
+      </div>
     </Form>
   );
 }
